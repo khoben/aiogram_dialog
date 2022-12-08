@@ -11,7 +11,7 @@ from aiogram_dialog.api.entities import (
     ChatEvent, DEFAULT_STACK_ID, DialogUpdateEvent, Stack,
 )
 from aiogram_dialog.api.exceptions import (
-    InvalidStackIdError, OutdatedIntent, UnknownState,
+    InvalidStackIdError, OutdatedIntent, UnknownState, UnknownIntent
 )
 from aiogram_dialog.api.internal import (
     CALLBACK_DATA_KEY, CONTEXT_KEY, STACK_KEY, STORAGE_KEY,
@@ -222,14 +222,15 @@ class IntentErrorMiddleware(BaseMiddleware):
             if stack.empty() or isinstance(error, UnknownState):
                 context = None
             else:
-                context = await proxy.load_context(stack.last_intent_id())
+                try:
+                    context = await proxy.load_context(stack.last_intent_id())
+                except UnknownIntent:
+                    context = None
             data[STACK_KEY] = stack
             data[CONTEXT_KEY] = context
             return await handler(event, data)
         finally:
             proxy: StorageProxy = data.pop(STORAGE_KEY, None)
             if proxy:
-                context = data.pop(CONTEXT_KEY)
-                if context is not None:
-                    await proxy.save_context(context)
-                await proxy.save_stack(data.pop(STACK_KEY))
+                await proxy.save_context(data.pop(CONTEXT_KEY, None))
+                await proxy.save_stack(data.pop(STACK_KEY, None))
