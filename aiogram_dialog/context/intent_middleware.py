@@ -225,6 +225,8 @@ class IntentErrorMiddleware(BaseMiddleware):
                 try:
                     context = await proxy.load_context(stack.last_intent_id())
                 except UnknownIntent:
+                    while not stack.empty():
+                        stack.pop()
                     context = None
             data[STACK_KEY] = stack
             data[CONTEXT_KEY] = context
